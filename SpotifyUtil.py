@@ -8,9 +8,9 @@ class SpotifyClient(Config):
     def __init__(self):
         super().__init__()
         self._client_creds = SpotifyClientCredentials(client_id=self.client_id, client_secret=self.client_secret)
-        self.auth_manager = SpotifyOAuth(client_id=self.client_id, client_secret=self.client_secret, scope=self.scope_str, redirect_uri="http://localhost:8080")
+        self.auth_creds = SpotifyOAuth(client_id=self.client_id, client_secret=self.client_secret, redirect_uri=self.redirect_uri, scope=self._scope_str)
         self.manager = Spotify(client_credentials_manager=self._client_creds)
-        self.manager2 = Spotify(oauth_manager=self.auth_manager)
+        self.manager2 = Spotify(auth_manager=self.auth_creds)
         self.user = self.manager2.current_user()
         self.user_id = self.user['id']
         log.info(message=self.user_id)
