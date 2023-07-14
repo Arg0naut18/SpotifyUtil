@@ -15,7 +15,7 @@ class SpotifyUtil(Config):
         self.spotify = Spotify(auth_manager=self.auth_manager)
         self.user = self.spotify.current_user()
         self.user_id = self.user['id']
-        log.info(msg=self.user_id)
+        log.debug(msg=self.user_id)
 
     def get_id(self, url:str, type="track"):
         return url.split(type+"/")[1].split('?')[0]
@@ -39,7 +39,7 @@ class SpotifyUtil(Config):
     
     def create_playlist(self, name, desc=None, is_public=True, is_collaborative=False):
         playlist = self.spotify.user_playlist_create(user=self.user_id, name=name, public=is_public, collaborative=is_collaborative, description=desc)
-        log.info(f"Created playlist with name: {name}")
+        log.debug(f"Created playlist with name: {name}")
         return playlist['id']
 
     def add_songs_to_playlist(self, playlist_id=None, from_url=None, type="playlist", iterable=None, name="Test Playlist"):
@@ -49,14 +49,14 @@ class SpotifyUtil(Config):
         if not iterable:
             iterable = self.get_tracks(from_url, type=type)
         self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=iterable)
-        log.info("Songs added to playlist successfully")
+        log.debug("Songs added to playlist successfully")
         return self.get_playlist_name_from_id(playlist_id=playlist_id)
 
-    def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_id=None):
+    def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_id=None, limit=20, offset=0):
         if not playlist_id: playlist_id = self.create_playlist(name=name)
-        tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks()['items']]
+        tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks(limit=limit, offset=offset)['items']]
         name = self.add_songs_to_playlist(name=name, playlist_id=playlist_id, iterable=tracks)
-        log.info(f"Liked songs have been added to the playlist with name: {name}")
+        log.debug(f"Liked songs have been added to the playlist with name: {name}")
 
     def search(self, search_str):
         return self.spotify.search(search_str)["tracks"]["items"][0]["external_urls"]["spotify"].split("track/")[1]
@@ -81,4 +81,4 @@ class SpotifyUtil(Config):
         Track_ids = self.get_track_IDs_from_names(songs)
         Track_ids = ["spotify:track:" + track for track in Track_ids]
         name = self.add_songs_to_playlist(playlist_id=playlist_id, iterable=Track_ids, name=name)
-        log.info(f"Added songs from the file {file_path} to the playlist with name: {name}")
+        log.debug(f"Added songs from the file {file_path} to the playlist with name: {name}")
