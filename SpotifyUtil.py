@@ -40,21 +40,34 @@ class SpotifyUtil(Config):
     def create_playlist(self, name, desc=None, is_public=True, is_collaborative=False):
         playlist = self.spotify.user_playlist_create(user=self.user_id, name=name, public=is_public, collaborative=is_collaborative, description=desc)
         log.debug(f"Created playlist with name: {name}")
-        return playlist['id']
+        return playlist['id'], playlist['external_urls']['spotify']
+    
+    def get_difference(self, list1, list2):
+        return list(set(list1)-set(list2))+list(set(list2)-set(list1))
 
-    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist"):
+    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=True):
         assert not ((from_url is not None) and (iterable is not None))
         if playlist_url is None or len(playlist_url)==0:
-            playlist_id = self.create_playlist(name=name)
+            playlist_id, playlist_url = self.create_playlist(name=name)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         if not iterable:
             iterable = self.get_tracks(from_url, type=type)
-        self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=iterable)
-        log.debug("Songs added to playlist successfully")
+        if allow_duplicates:
+            for idx in range(0, len(iterable), 100):
+                chunk = iterable[idx:idx+100]
+                self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
+            log.debug("Songs added to playlist successfully")
+        else:
+            already_present_tracks = self.get_tracks(playlist_url)
+            non_matching_tracks = self.get_difference(iterable, already_present_tracks)
+            for idx in range(0, len(non_matching_tracks), 100):
+                chunk = non_matching_tracks[idx:idx+100]
+                self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
+            log.debug("Songs added to playlist successfully")
         return self.get_playlist_name_from_id(playlist_id=playlist_id)
 
     def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_url=None, limit=20, offset=0):
-        if not playlist_url or len(playlist_url)==0: playlist_id = self.create_playlist(name=name)
+        if not playlist_url or len(playlist_url)==0: playlist_id, playlist_url = self.create_playlist(name=name)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks(limit=limit, offset=offset)['items']]
         name = self.add_songs_to_playlist(name=name, playlist_id=playlist_id, iterable=tracks)
@@ -73,7 +86,7 @@ class SpotifyUtil(Config):
                 print(e)
         return track_ids
     
-    def add_songs_to_playlist_from_file(self, file_path, playlist_url=None, name="Test Playlist"):
+    def add_songs_to_playlist_from_file(self, file_path, playlist_url=None, name="Test Playlist", allow_duplicates=True):
         """File structure has to be Song Name - Artist"""
         assert os.path.isfile(file_path)
         songs = []
@@ -82,10 +95,5 @@ class SpotifyUtil(Config):
                 songs.append(line)
         Track_ids = self.get_track_IDs_from_names(songs)
         Track_ids = ["spotify:track:" + track for track in Track_ids]
-        name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name)
+        name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name, allow_duplicates=allow_duplicates)
         log.debug(f"Added songs from the file {file_path} to the playlist with name: {name}")
-
-
-if __name__ == "__main__":
-    sp = SpotifyUtil()
-    sp.add_songs_to_playlist(from_url="https://open.spotify.com/playlist/1a9w7OdPkBlWCwszwp66zN?si=946b593cafd84841", name="Test")
