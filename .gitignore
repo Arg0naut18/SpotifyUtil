@@ -1,3 +1,5 @@
 secret.py
 .cache
 __pycache__/
+dist/*.tar.gz
+SpotifyUtil.egg-info/*
