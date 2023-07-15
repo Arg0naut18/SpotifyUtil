@@ -17,6 +17,12 @@ class SpotifyUtil(Config):
         self.user_id = self.user['id']
         log.debug(msg=self.user_id)
 
+    def get_track_details(self, url: str):
+        song = self.spotify.track(url)
+        name = song['name']
+        artist = song['album']['artists'][0]['name']
+        return song, name, artist, song['track']['uri']
+
     def get_id(self, url:str, type="track"):
         return url.split(type+"/")[1].split('?')[0]
 
@@ -35,7 +41,7 @@ class SpotifyUtil(Config):
             items = self.spotify.playlist(uri)
         else:
             items = self.spotify.album(uri)
-        return [track['track']['uri'] for track in items['tracks']['items']]
+        return [track['track']['uri'] for track in items['tracks']['items']], [self.get_track_details(track) for track in items['tracks']['items']]
     
     def create_playlist(self, name, desc=None, is_public=True, is_collaborative=False):
         playlist = self.spotify.user_playlist_create(user=self.user_id, name=name, public=is_public, collaborative=is_collaborative, description=desc)
@@ -51,14 +57,14 @@ class SpotifyUtil(Config):
             playlist_id, playlist_url = self.create_playlist(name=name)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         if not iterable:
-            iterable = self.get_tracks(from_url, type=type)
+            iterable = self.get_tracks(from_url, type=type)[0]
         if allow_duplicates:
             for idx in range(0, len(iterable), 100):
                 chunk = iterable[idx:idx+100]
                 self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
             log.debug("Songs added to playlist successfully")
         else:
-            already_present_tracks = self.get_tracks(playlist_url)
+            already_present_tracks = self.get_tracks(playlist_url)[0]
             non_matching_tracks = self.get_difference(iterable, already_present_tracks)
             for idx in range(0, len(non_matching_tracks), 100):
                 chunk = non_matching_tracks[idx:idx+100]
