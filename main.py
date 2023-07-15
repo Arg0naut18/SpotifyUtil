@@ -1,6 +1,6 @@
 from tkinter import Tk, messagebox, StringVar, filedialog
 from tkinter import Entry, Button, Label
-from SpotifyUtil import SpotifyUtil
+from SpotifyUtil.SpotifyUtil import SpotifyUtil
 
 class SpotifyUtilToolkit(Tk):
     def __init__(self) -> None:

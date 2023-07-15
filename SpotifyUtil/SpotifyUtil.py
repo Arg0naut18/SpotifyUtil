@@ -1,6 +1,6 @@
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from config import Config
+from SpotifyUtil.config import Config
 import os
 import logging
 
