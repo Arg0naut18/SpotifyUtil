@@ -1,2 +1,2 @@
 spotipy
-tkinter
+tk
