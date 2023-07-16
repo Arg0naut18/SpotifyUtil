@@ -3,6 +3,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from SpotifyUtil.config import Config
 import os
 import logging
+from file_reader import FileReader
 
 
 log = logging.getLogger(__name__)
@@ -23,7 +24,8 @@ class SpotifyUtil(Config):
         artist = song['album']['artists'][0]['name']
         return {"track": song, "name": name, "artist": artist, "uri": song['track']['uri']}
 
-    def get_id(self, url:str, type="track"):
+    @staticmethod
+    def get_id(url:str, type="track"):
         return url.split(type+"/")[1].split('?')[0]
 
     def create_uri(self, url:str, type="track"):
@@ -59,7 +61,7 @@ class SpotifyUtil(Config):
     def get_difference(self, list1, list2):
         return list(set(list1)-set(list2))+list(set(list2)-set(list1))
 
-    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=True):
+    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=False):
         assert not ((from_url is not None) and (iterable is not None))
         if playlist_url is None or len(playlist_url)==0:
             playlist_id, playlist_url = self.create_playlist(name=name)
@@ -100,13 +102,10 @@ class SpotifyUtil(Config):
                 print(e)
         return track_ids
     
-    def add_songs_to_playlist_from_file(self, file_path, playlist_url=None, name="Test Playlist", allow_duplicates=True):
+    def add_songs_to_playlist_from_file(self, file_path, playlist_url=None, name="Test Playlist", allow_duplicates=False):
         """File structure has to be Song Name - Artist"""
         assert os.path.isfile(file_path)
-        songs = []
-        with open(file_path, "r") as file:
-            for line in file:
-                songs.append(line)
+        songs = FileReader.read_songs(file_path=file_path)
         Track_ids = self.get_track_IDs_from_names(songs)
         Track_ids = ["spotify:track:" + track for track in Track_ids]
         name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name, allow_duplicates=allow_duplicates)
