@@ -1,5 +1,5 @@
 import os
-import SpotifyUtil.secret as secret
+import secret as secret
 
 class Config:
     def __init__(self):

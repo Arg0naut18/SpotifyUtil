@@ -78,6 +78,11 @@ class SpotifyUtil(Config):
     def get_difference(self, list1, list2):
         return list(set(list1)-set(list2))+list(set(list2)-set(list1))
     
+    def get_different_tracks(self, url1, url2):
+        list1 = self.get_tracks(url1)
+        list2 = self.get_tracks(url2)
+        return self.get_difference(list1, list2)
+    
     def check_track_is_available(self, track) -> bool:
         return len(track['available_markets'])>0
     
@@ -133,3 +138,10 @@ class SpotifyUtil(Config):
         Track_ids = ["spotify:track:" + track for track in Track_ids]
         name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name, allow_duplicates=allow_duplicates)
         log.debug(f"Added songs from the file {file_path} to the playlist with name: {name}")
+
+
+if __name__ == "__main__":
+    to_url = "https://open.spotify.com/playlist/796MUv1yWY1pJD1Hbk4X0f?si=519ec6b4ce404c2e"
+    from_url = "https://open.spotify.com/playlist/6Ujd4z9JhEhBR5Bwr7pvsi?si=eeacd0f47d424249&pt=f3a05093b4ea31dc625c30db216bf44f"
+    sp = SpotifyUtil()
+    print(sp.get_different_tracks(to_url, from_url))
