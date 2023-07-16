@@ -1,9 +1,10 @@
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from SpotifyUtil.config import Config
+from config import Config
 import os
 import logging
 from file_reader import FileReader
+from pprint import pprint
 
 
 log = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class SpotifyUtil(Config):
         song = self.spotify.track(url)
         name = song['name']
         artist = song['album']['artists'][0]['name']
-        return {"track": song, "name": name, "artist": artist, "uri": song['track']['uri']}
+        return {"track": song, "name": name, "artist": artist, "uri": song['uri'], "available": self.check_track_is_available(song)}
 
     @staticmethod
     def get_id(url:str, type="track"):
@@ -36,19 +37,35 @@ class SpotifyUtil(Config):
         playlist = self.spotify.user_playlist(user=None, playlist_id=playlist_id, fields="name")
         return playlist['name']
     
+    def get_playlist_tracks(self, playlist_id):
+        results = self.spotify.user_playlist_tracks(self.user_id, playlist_id)
+        tracks = results['items']
+        while results['next']:
+            results = self.spotify.next(results)
+            tracks.extend(results['items'])
+        return tracks
+    
     def get_tracks(self, url:str, type="playlist", verbose=False):
         uri = self.create_uri(url=url, type=type)
         items = None
-        if type=="playlist":
-            items = self.spotify.playlist(uri)
-        else:
-            items = self.spotify.album(uri)
         uri_list = []
         track_details_list = []
-        for track in items['tracks']['items']:
-            temp = self.get_track_details(track)
-            uri_list.append(temp['uri'])
-            track_details_list.append(temp)
+        if type=="playlist":
+            items = self.get_playlist_tracks(uri)
+            for track in items:
+                temp = self.get_track_details(track['track']['uri'])
+                if not temp['available']:
+                    continue
+                uri_list.append(temp['uri'])
+                track_details_list.append(temp)
+        else:
+            items = self.spotify.album(uri)
+            for track in items['tracks']['items']:
+                temp = self.get_track_details(track['track']['uri'])
+                if not temp['available']:
+                    continue
+                uri_list.append(temp['uri'])
+                track_details_list.append(temp)
         if verbose:
             return track_details_list
         return uri_list
@@ -60,6 +77,12 @@ class SpotifyUtil(Config):
     
     def get_difference(self, list1, list2):
         return list(set(list1)-set(list2))+list(set(list2)-set(list1))
+    
+    def check_track_is_available(self, track) -> bool:
+        return len(track['available_markets'])>0
+    
+    def get_unavailable_songs(self, tracks):
+        return [track for track in tracks if not self.check_track_is_available(track)]
 
     def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=False):
         assert not ((from_url is not None) and (iterable is not None))
