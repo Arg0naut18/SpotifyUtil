@@ -4,7 +4,6 @@ from config import Config
 import os
 import logging
 from file_reader import FileReader
-from pprint import pprint
 
 
 log = logging.getLogger(__name__)
@@ -54,18 +53,18 @@ class SpotifyUtil(Config):
             items = self.get_playlist_tracks(uri)
             for track in items:
                 temp = self.get_track_details(track['track']['uri'])
+                track_details_list.append(temp)
                 if not temp['available']:
                     continue
                 uri_list.append(temp['uri'])
-                track_details_list.append(temp)
         else:
             items = self.spotify.album(uri)
             for track in items['tracks']['items']:
                 temp = self.get_track_details(track['track']['uri'])
+                track_details_list.append(temp)
                 if not temp['available']:
                     continue
                 uri_list.append(temp['uri'])
-                track_details_list.append(temp)
         if verbose:
             return track_details_list
         return uri_list
@@ -76,37 +75,43 @@ class SpotifyUtil(Config):
         return playlist['id'], playlist['external_urls']['spotify']
     
     def get_difference(self, list1, list2):
-        return list(set(list1)-set(list2))+list(set(list2)-set(list1))
-    
+        return list(set(list1)^set(list2))
+        
     def get_different_tracks(self, url1, url2):
-        list1 = self.get_tracks(url1)
-        list2 = self.get_tracks(url2)
+        list1 = self.get_tracks(url1, verbose=True)
+        list2 = self.get_tracks(url2, verbose=True)
         return self.get_difference(list1, list2)
     
     def check_track_is_available(self, track) -> bool:
-        return len(track['available_markets'])>0
+        result = False
+        try:
+            result = len(track['available_markets'])>0
+        except:
+            result = len(track['track']['available_markets'])>0
+        return result
     
     def get_unavailable_songs(self, tracks):
-        return [track for track in tracks if not self.check_track_is_available(track)]
+        return [track['uri'] for track in tracks if not self.check_track_is_available(track)]
+    
+    def add_tracks_in_chunks(self, iterable, playlist_id):
+        for idx in range(0, len(iterable), 100):
+            chunk = iterable[idx:idx+100]
+            self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
 
-    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=False):
+    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=False, description=None, is_public=True, is_collaborative=False):
         assert not ((from_url is not None) and (iterable is not None))
         if playlist_url is None or len(playlist_url)==0:
-            playlist_id, playlist_url = self.create_playlist(name=name)
+            playlist_id, playlist_url = self.create_playlist(name=name, desc=description, is_public=is_public, is_collaborative=is_collaborative)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         if not iterable:
             iterable = self.get_tracks(from_url, type=type)
         if allow_duplicates:
-            for idx in range(0, len(iterable), 100):
-                chunk = iterable[idx:idx+100]
-                self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
+            self.add_tracks_in_chunks(iterable, playlist_id)
             log.debug("Songs added to playlist successfully")
         else:
             already_present_tracks = self.get_tracks(playlist_url)
             non_matching_tracks = self.get_difference(iterable, already_present_tracks)
-            for idx in range(0, len(non_matching_tracks), 100):
-                chunk = non_matching_tracks[idx:idx+100]
-                self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
+            self.add_tracks_in_chunks(non_matching_tracks, playlist_id)
             log.debug("Songs added to playlist successfully")
         return self.get_playlist_name_from_id(playlist_id=playlist_id)
 
@@ -139,9 +144,7 @@ class SpotifyUtil(Config):
         name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name, allow_duplicates=allow_duplicates)
         log.debug(f"Added songs from the file {file_path} to the playlist with name: {name}")
 
-
-if __name__ == "__main__":
-    to_url = "https://open.spotify.com/playlist/796MUv1yWY1pJD1Hbk4X0f?si=519ec6b4ce404c2e"
-    from_url = "https://open.spotify.com/playlist/6Ujd4z9JhEhBR5Bwr7pvsi?si=eeacd0f47d424249&pt=f3a05093b4ea31dc625c30db216bf44f"
-    sp = SpotifyUtil()
-    print(sp.get_different_tracks(to_url, from_url))
+    def create_unavailable_track_playlist(self, name, playlist_id, description=None, is_public=True, is_collaborative=False):
+        songs = self.get_tracks(playlist_id, verbose=True)
+        to_be_added = self.get_unavailable_songs(songs)
+        self.add_songs_to_playlist(name=name, iterable=to_be_added, description=description, is_public=is_public, is_collaborative=is_collaborative)
