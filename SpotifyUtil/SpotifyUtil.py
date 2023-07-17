@@ -49,25 +49,30 @@ class SpotifyUtil(Config):
         items = None
         uri_list = []
         track_details_list = []
+        total_track_len, available_track_len = 0, 0
         if type=="playlist":
             items = self.get_playlist_tracks(uri)
             for track in items:
+                total_track_len+=1
                 temp = self.get_track_details(track['track']['uri'])
                 track_details_list.append(temp)
                 if not temp['available']:
                     continue
                 uri_list.append(temp['uri'])
+                available_track_len+=1
         else:
             items = self.spotify.album(uri)
             for track in items['tracks']['items']:
+                total_track_len+=1
                 temp = self.get_track_details(track['track']['uri'])
                 track_details_list.append(temp)
                 if not temp['available']:
                     continue
                 uri_list.append(temp['uri'])
+                available_track_len+=1
         if verbose:
             return track_details_list
-        return uri_list
+        return {"tracks": uri_list, "total_tracks_length": total_track_len, "available_tracks_length": available_track_len}
     
     def create_playlist(self, name, desc=None, is_public=True, is_collaborative=False):
         playlist = self.spotify.user_playlist_create(user=self.user_id, name=name, public=is_public, collaborative=is_collaborative, description=desc)
@@ -104,12 +109,12 @@ class SpotifyUtil(Config):
             playlist_id, playlist_url = self.create_playlist(name=name, desc=description, is_public=is_public, is_collaborative=is_collaborative)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         if not iterable:
-            iterable = self.get_tracks(from_url, type=type)
+            iterable = self.get_tracks(from_url, type=type)['tracks']
         if allow_duplicates:
             self.add_tracks_in_chunks(iterable, playlist_id)
             log.debug("Songs added to playlist successfully")
         else:
-            already_present_tracks = self.get_tracks(playlist_url)
+            already_present_tracks = self.get_tracks(playlist_url)['tracks']
             non_matching_tracks = self.get_difference(iterable, already_present_tracks)
             self.add_tracks_in_chunks(non_matching_tracks, playlist_id)
             log.debug("Songs added to playlist successfully")
