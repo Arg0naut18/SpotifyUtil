@@ -3,3 +3,4 @@ secret.py
 __pycache__/
 SpotifyUtil.egg-info/*
 SpotifyUtil/setup.py
+UI/*
