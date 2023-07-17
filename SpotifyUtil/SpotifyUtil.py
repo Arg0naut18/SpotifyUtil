@@ -1,9 +1,9 @@
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from config import Config
+from SpotifyUtil.config import Config
 import os
 import logging
-from file_reader import FileReader
+from SpotifyUtil.file_reader import FileReader
 
 
 log = logging.getLogger(__name__)
