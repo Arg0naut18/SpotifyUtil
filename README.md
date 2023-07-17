@@ -12,10 +12,23 @@ SpotifyUtils is a very useful library made over Spotipy to automate some rather 
 ```python
 from SpotifyUtil import SpotifyUtil
 
-os.environ["SPOTIPY_CLIENT_ID"] = <Your Spotify Client ID>
-os.environ["SPOTIPY_CLIENT_SECRET"] = <Your Spotify Client Secret>
-os.environ["SPOTIPY_REDIRECT_URI"] = <Your Spotify Redirect URI>
+os.environ["SPOTIPY_CLIENT_ID"] = "Your Spotify Client ID"
+os.environ["SPOTIPY_CLIENT_SECRET"] = "Your Spotify Client Secret"
+os.environ["SPOTIPY_REDIRECT_URI"] = "Your Spotify Redirect URI"
 
 sp = SpotifyUtil()
+sp.add_liked_songs_to_playlist(name="Test Liked songs", limit=20)
+```
+or
+```python
+from SpotifyUtil import SpotifyUtil
+
+
+sp = SpotifyUtil(
+    spotify_client_id="Your Spotify Client ID",
+    spotify_client_secret="Your Spotify Client Secret",
+    spotify_redirect_uri="Your Spotify Redirect URI"
+    )
+    
 sp.add_liked_songs_to_playlist(name="Test Liked songs", limit=20)
 ```

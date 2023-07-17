@@ -10,8 +10,8 @@ log = logging.getLogger(__name__)
 
 
 class SpotifyUtil(Config):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None):
+        super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri)
         self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
         self.spotify = Spotify(auth_manager=self.auth_manager)
         self.user = self.spotify.current_user()
