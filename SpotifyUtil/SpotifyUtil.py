@@ -113,9 +113,9 @@ class SpotifyUtil(Config):
         """
         result = False
         try:
-            result = len(track['playable_markets'])>0
+            result = len(track['available_markets'])>0
         except:
-            result = len(track['track']['playable_markets'])>0
+            result = len(track['track']['available_markets'])>0
         return result
     
     def get_unplayable_songs(self, tracks):
