@@ -1,17 +1,23 @@
 [project]
 name = "SpotifyUtil"
-version = "0.0.1"
+version = "0.0.5"
 authors = [
     { name="Arg0naut18", email="gaming.genos1729@gmail.com" },
 ]
 description = "SpotifyUtils is a very useful library made over Spotipy to automate some rather tiring tasks."
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
+]
+keywords = [
+    "Spotify",
+    "Spotipy",
+    "SpotifyUtil",
+    "SpotifyUtils",
 ]
 
 [build-system]

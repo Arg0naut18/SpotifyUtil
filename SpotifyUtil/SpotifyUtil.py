@@ -10,6 +10,9 @@ log = logging.getLogger(__name__)
 
 
 class SpotifyUtil(Config):
+    """
+    A utility that aims to create and modify spotify playlists and albums for you using a single function.
+    """
     def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None):
         super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri)
         self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
@@ -22,7 +25,7 @@ class SpotifyUtil(Config):
         song = self.spotify.track(url)
         name = song['name']
         artist = song['album']['artists'][0]['name']
-        return {"track": song, "name": name, "artist": artist, "uri": song['uri'], "available": self.check_track_is_available(song)}
+        return {"track": song, "name": name, "artist": artist, "uri": song['uri'], "playable": self.check_track_is_playable(song)}
 
     @staticmethod
     def get_id(url:str, type="track"):
@@ -45,36 +48,50 @@ class SpotifyUtil(Config):
         return tracks
     
     def get_tracks(self, url:str, type="playlist", verbose=False):
+        """
+        Returns a dict containing list of URIs ("tracks"), No. of total tracks present ("total_tracks_length") and No. of playable tracks present ("playable_tracks_length") of all the tracks playable in the given url.\n
+        Params:\n
+        `verbose` -> Set this to True if you want to get the entire track detail of each track present instead of only the URIs.\n
+        `type` -> Set the type of track set is it. Takes "Playlist" or "Album" as input. By default set to "Playlist"
+        """
         uri = self.create_uri(url=url, type=type)
         items = None
         uri_list = []
         track_details_list = []
-        total_track_len, available_track_len = 0, 0
+        total_track_len, playable_track_len = 0, 0
         if type=="playlist":
             items = self.get_playlist_tracks(uri)
             for track in items:
                 total_track_len+=1
                 temp = self.get_track_details(track['track']['uri'])
                 track_details_list.append(temp)
-                if not temp['available']:
+                if not temp['playable']:
                     continue
                 uri_list.append(temp['uri'])
-                available_track_len+=1
+                playable_track_len+=1
         else:
             items = self.spotify.album(uri)
             for track in items['tracks']['items']:
                 total_track_len+=1
                 temp = self.get_track_details(track['track']['uri'])
                 track_details_list.append(temp)
-                if not temp['available']:
+                if not temp['playable']:
                     continue
                 uri_list.append(temp['uri'])
-                available_track_len+=1
+                playable_track_len+=1
         if verbose:
             return track_details_list
-        return {"tracks": uri_list, "total_tracks_length": total_track_len, "available_tracks_length": available_track_len}
+        return {"tracks": uri_list, "total_tracks_length": total_track_len, "playable_tracks_length": playable_track_len}
     
     def create_playlist(self, name, desc=None, is_public=True, is_collaborative=False):
+        """
+        Creates a playlist in the user account in spotify.\n
+        Params:\n
+        `name` -> The name of the playlist\n
+        `desc` -> The description of the playlist. (Optional)\n
+        `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
+        `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
+        """
         playlist = self.spotify.user_playlist_create(user=self.user_id, name=name, public=is_public, collaborative=is_collaborative, description=desc)
         log.debug(f"Created playlist with name: {name}")
         return playlist['id'], playlist['external_urls']['spotify']
@@ -83,27 +100,57 @@ class SpotifyUtil(Config):
         return list(set(list1)^set(list2))
         
     def get_different_tracks(self, url1, url2):
+        """
+        Returns a list of all the track URIs that are not present in any one of the track sets.
+        """
         list1 = self.get_tracks(url1, verbose=True)
         list2 = self.get_tracks(url2, verbose=True)
         return self.get_difference(list1, list2)
     
-    def check_track_is_available(self, track) -> bool:
+    def check_track_is_playable(self, track) -> bool:
+        """
+        Checks if the market of the track is null or not.
+        """
         result = False
         try:
-            result = len(track['available_markets'])>0
+            result = len(track['playable_markets'])>0
         except:
-            result = len(track['track']['available_markets'])>0
+            result = len(track['track']['playable_markets'])>0
         return result
     
-    def get_unavailable_songs(self, tracks):
-        return [track['uri'] for track in tracks if not self.check_track_is_available(track)]
+    def get_unplayable_songs(self, tracks):
+        return [track['uri'] for track in tracks if not self.check_track_is_playable(track)]
     
     def add_tracks_in_chunks(self, iterable, playlist_id):
         for idx in range(0, len(iterable), 100):
             chunk = iterable[idx:idx+100]
             self.spotify.user_playlist_add_tracks(user=self.user_id, playlist_id=playlist_id, tracks=chunk)
 
-    def add_songs_to_playlist(self, playlist_url: str=None, from_url=None, type="playlist", iterable=None, name="Test Playlist", allow_duplicates:bool=False, description=None, is_public=True, is_collaborative=False):
+    def add_songs_to_playlist(self, 
+                            playlist_url: str=None, 
+                            from_url=None, 
+                            type="playlist", 
+                            iterable=None, 
+                            name="Test Playlist", 
+                            allow_duplicates:bool=False, 
+                            description=None, 
+                            is_public=True, 
+                            is_collaborative=False
+                            ):
+        """
+        Adds songs to a playlist.\n
+        Params:\n
+        `playlist_url` -> The url of the playlist you want to add your songs to. (Optional)\n
+        `from_url` -> The url of the track set you want to add your songs from. (Optional)\n
+        `type` -> The type of the track set. Can be "playlist" or "Album". Set to "playlist" by default\n
+        `iterable` -> If you have a list of track urls you want to add your songs from use this to store the iterable. Should not be used if there is already a from_url\n
+        `allow_duplicates` -> A boolean to set if you want to allow duplicate songs to be added again in the playlist. Set to False by default.\n
+        *If you do not have a playlist url then the following params are needed:\n
+        `name` -> Name of the playlist you want to create.\n
+        `description` -> The description of the playlist. (Optional)\n
+        `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
+        `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
+        """
         assert not ((from_url is not None) and (iterable is not None))
         if playlist_url is None or len(playlist_url)==0:
             playlist_id, playlist_url = self.create_playlist(name=name, desc=description, is_public=is_public, is_collaborative=is_collaborative)
@@ -120,17 +167,31 @@ class SpotifyUtil(Config):
             log.debug("Songs added to playlist successfully")
         return self.get_playlist_name_from_id(playlist_id=playlist_id)
 
-    def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_url=None, limit=20, offset=0):
+    def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_url=None, limit=20, offset=1):
+        """
+        Adds your liked songs to a playlist.\n
+        Params:\n
+        `name` -> Name of the playlist if playlist doesn't exist already. (Optional)\n
+        `playlist_url` -> The URL of the playlist you want to add your liked songs to. If provided, new playlist will not be created. (Optional)\n
+        `limit` -> The no. of songs you want to add to your playlist.\n
+        `offset` -> The playlist will contain songs starting from this numbered track in your liked songs.
+        """
         if not playlist_url or len(playlist_url)==0: playlist_id, playlist_url = self.create_playlist(name=name)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
-        tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks(limit=limit, offset=offset)['items']]
+        tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks(limit=limit, offset=offset-1)['items']]
         name = self.add_songs_to_playlist(name=name, playlist_id=playlist_id, iterable=tracks)
         log.debug(f"Liked songs have been added to the playlist with name: {name}")
 
     def search(self, search_str):
+        """
+        Searches for a song in spotify with the given search string and returns it's ID.
+        """
         return self.spotify.search(search_str)["tracks"]["items"][0]["external_urls"]["spotify"].split("track/")[1]
 
     def get_track_IDs_from_names(self, iterable):
+        """
+        Searches for a song in spotify with the given list of search strings and returns their IDs.
+        """
         track_ids = []
         for line in iterable:
             try:
@@ -141,7 +202,15 @@ class SpotifyUtil(Config):
         return track_ids
     
     def add_songs_to_playlist_from_file(self, file_path, playlist_url=None, name="Test Playlist", allow_duplicates=False):
-        """File structure has to be Song Name - Artist"""
+        """
+        Adds songs to a playlist from a given file.\n
+        Note: File content structure has to be Song Name - Artist\n
+        Params:\n
+        `name` -> Name of the playlist if playlist doesn't exist already. (Optional)\n
+        `playlist_url` -> The URL of the playlist you want to add songs to. If provided, new playlist will not be created. (Optional)\n
+        `file_path` -> The path of the file you want to add your songs from. The content of the file has to be "Song Name - Artist" separated by newlines.\n
+        `allow_duplicates` -> A boolean to set if you want to allow duplicate songs to be added again in the playlist. Set to False by default.
+        """
         assert os.path.isfile(file_path)
         songs = FileReader.read_songs(file_path=file_path)
         Track_ids = self.get_track_IDs_from_names(songs)
@@ -149,7 +218,16 @@ class SpotifyUtil(Config):
         name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name, allow_duplicates=allow_duplicates)
         log.debug(f"Added songs from the file {file_path} to the playlist with name: {name}")
 
-    def create_unavailable_track_playlist(self, name, playlist_id, description=None, is_public=True, is_collaborative=False):
-        songs = self.get_tracks(playlist_id, verbose=True)
-        to_be_added = self.get_unavailable_songs(songs)
+    def create_unplayable_track_playlist(self, name, playlist_url, description=None, is_public=True, is_collaborative=False):
+        """
+        Creates a playlist with all the unplayable tracks present in the given playlist url.\n
+        Params:\n
+        `name` -> Name of the playlist you want to create.\n
+        `playlist_url` -> The URL of the playlist you want to add songs from.\n
+        `description` -> The description of the playlist. (Optional)\n
+        `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
+        `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
+        """
+        songs = self.get_tracks(playlist_url, verbose=True)
+        to_be_added = self.get_unplayable_songs(songs)
         self.add_songs_to_playlist(name=name, iterable=to_be_added, description=description, is_public=is_public, is_collaborative=is_collaborative)

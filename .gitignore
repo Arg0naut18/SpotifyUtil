@@ -4,3 +4,4 @@ __pycache__/
 SpotifyUtil.egg-info/*
 SpotifyUtil/setup.py
 UI/*
+dist/*.gz
