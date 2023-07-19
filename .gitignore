@@ -5,3 +5,4 @@ SpotifyUtil.egg-info/*
 SpotifyUtil/setup.py
 UI/*
 dist/*.gz
+utilityTest.py

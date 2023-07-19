@@ -58,9 +58,9 @@ class SpotifyUtil(Config):
         """
         Returns a dict containing list of URIs ("tracks"), No. of total tracks present ("total_tracks_length") and No. of playable tracks present ("playable_tracks_length") of all the tracks playable in the given url.\n
         Params:\n
-        `verbose` -> Set this to True if you want to get the entire track detail of each track present instead of only the URIs.\n
-        `type` -> Set the type of track set is it. Takes "Playlist" or "Album" as input. By default set to "Playlist"\n
-        `avoid_unavailable` -> Avoid getting tracks which are unavailable/unplayable. 
+        - `verbose` -> Set this to True if you want to get the entire track detail of each track present instead of only the URIs.\n
+        - `type` -> Set the type of track set is it. Takes "Playlist" or "Album" as input. By default set to "Playlist"\n
+        - `avoid_unavailable` -> Avoid getting tracks which are unavailable/unplayable. 
         """
         uri = self.create_uri(url=url, type=type)
         items = None
@@ -102,10 +102,10 @@ class SpotifyUtil(Config):
         """
         Creates a playlist in the user account in spotify.\n
         Params:\n
-        `name` -> The name of the playlist\n
-        `desc` -> The description of the playlist. (Optional)\n
-        `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
-        `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
+        - `name` -> The name of the playlist\n
+        - `desc` -> The description of the playlist. (Optional)\n
+        - `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
+        - `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
         """
         playlist = self.spotify.user_playlist_create(user=self.user_id, name=name, public=is_public, collaborative=is_collaborative, description=desc)
         log.debug(f"Created playlist with name: {name}")
@@ -176,16 +176,16 @@ class SpotifyUtil(Config):
         """
         Adds songs to a playlist.\n
         Params:\n
-        `playlist_url` -> The url of the playlist you want to add your songs to. (Optional)\n
-        `from_url` -> The url of the track set you want to add your songs from. (Optional)\n
-        `type` -> The type of the track set. Can be "playlist" or "Album". Set to "playlist" by default\n
-        `iterable` -> If you have a list of track urls you want to add your songs from use this to store the iterable. Should not be used if there is already a from_url\n
-        `allow_duplicates` -> A boolean to set if you want to allow duplicate songs to be added again in the playlist. Set to False by default.\n
+        - `playlist_url` -> The url of the playlist you want to add your songs to. (Optional)\n
+        - `from_url` -> The url of the track set you want to add your songs from. (Optional)\n
+        - `type` -> The type of the track set. Can be "playlist" or "Album". Set to "playlist" by default\n
+        - `iterable` -> If you have a list of track urls you want to add your songs from use this to store the iterable. Should not be used if there is already a from_url\n
+        - `allow_duplicates` -> A boolean to set if you want to allow duplicate songs to be added again in the playlist. Set to False by default.\n
         *If you do not have a playlist url then the following params are needed:\n
-        `name` -> Name of the playlist you want to create.\n
-        `description` -> The description of the playlist. (Optional)\n
-        `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
-        `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
+        - `name` -> Name of the playlist you want to create.\n
+        - `description` -> The description of the playlist. (Optional)\n
+        - `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
+        - `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
         """
         assert not ((from_url is not None) and (iterable is not None))
         if playlist_url is None or len(playlist_url)==0:
@@ -207,16 +207,23 @@ class SpotifyUtil(Config):
         """
         Adds your liked songs to a playlist.\n
         Params:\n
-        `name` -> Name of the playlist if playlist doesn't exist already. (Optional)\n
-        `playlist_url` -> The URL of the playlist you want to add your liked songs to. If provided, new playlist will not be created. (Optional)\n
-        `limit` -> The no. of songs you want to add to your playlist.\n
-        `offset` -> The playlist will contain songs starting from this numbered track in your liked songs.
+        - `name` -> Name of the playlist if playlist doesn't exist already. (Optional)\n
+        - `playlist_url` -> The URL of the playlist you want to add your liked songs to. If provided, new playlist will not be created. (Optional)\n
+        - `limit` -> The no. of songs you want to add to your playlist.\n
+        - `offset` -> The playlist will contain songs starting from this numbered track in your liked songs.
         """
         if not playlist_url or len(playlist_url)==0: playlist_id, playlist_url = self.create_playlist(name=name)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks(limit=limit, offset=offset-1)['items']]
         name = self.add_songs_to_playlist(name=name, playlist_id=playlist_id, iterable=tracks)
         log.debug(f"Liked songs have been added to the playlist with name: {name}")
+
+    def delete_tracks(self, playlist_url, iterable):
+        self.spotify.user_playlist_remove_all_occurrences_of_tracks(self.user_id, playlist_url, iterable)
+
+    def clear_playlist(self, playlist_url):
+        tracks = self.get_tracks(playlist_url)
+        self.delete_tracks(playlist_url=playlist_url, iterable=tracks)
 
     def search(self, search_str):
         """
@@ -242,10 +249,10 @@ class SpotifyUtil(Config):
         Adds songs to a playlist from a given file.\n
         Note: File content structure has to be Song Name - Artist\n
         Params:\n
-        `name` -> Name of the playlist if playlist doesn't exist already. (Optional)\n
-        `playlist_url` -> The URL of the playlist you want to add songs to. If provided, new playlist will not be created. (Optional)\n
-        `file_path` -> The path of the file you want to add your songs from. The content of the file has to be "Song Name - Artist" separated by newlines.\n
-        `allow_duplicates` -> A boolean to set if you want to allow duplicate songs to be added again in the playlist. Set to False by default.
+        - `name` -> Name of the playlist if playlist doesn't exist already. (Optional)\n
+        - `playlist_url` -> The URL of the playlist you want to add songs to. If provided, new playlist will not be created. (Optional)\n
+        - `file_path` -> The path of the file you want to add your songs from. The content of the file has to be "Song Name - Artist" separated by newlines.\n
+        - `allow_duplicates` -> A boolean to set if you want to allow duplicate songs to be added again in the playlist. Set to False by default.
         """
         assert os.path.isfile(file_path)
         songs = FileReader.read_songs(file_path=file_path)
@@ -258,11 +265,11 @@ class SpotifyUtil(Config):
         """
         Creates a playlist with all the unplayable tracks present in the given playlist url.\n
         Params:\n
-        `name` -> Name of the playlist you want to create.\n
-        `playlist_url` -> The URL of the playlist you want to add songs from.\n
-        `description` -> The description of the playlist. (Optional)\n
-        `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
-        `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
+        - `name` -> Name of the playlist you want to create.\n
+        - `playlist_url` -> The URL of the playlist you want to add songs from.\n
+        - `description` -> The description of the playlist. (Optional)\n
+        - `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
+        - `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
         """
         songs = self.get_tracks(playlist_url, verbose=True)
         to_be_added = self.get_unplayable_songs(songs.detailed_list)
