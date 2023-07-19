@@ -8,6 +8,13 @@ from SpotifyUtil.file_reader import FileReader
 
 log = logging.getLogger(__name__)
 
+class TrackSetDetails:
+    def __init__(self, total_length: int, playable_length: int, detailed_list: list[dict], unplayable_list:list):
+        self.total_length = total_length
+        self.playable_length = playable_length
+        self.detailed_list = detailed_list
+        self.unplayable_uris = unplayable_list
+
 
 class SpotifyUtil(Config):
     """
@@ -39,7 +46,7 @@ class SpotifyUtil(Config):
         playlist = self.spotify.user_playlist(user=None, playlist_id=playlist_id, fields="name")
         return playlist['name']
     
-    def get_playlist_tracks(self, playlist_id):
+    def get_playlist_tracks(self, playlist_id) -> list:
         results = self.spotify.user_playlist_tracks(self.user_id, playlist_id)
         tracks = results['items']
         while results['next']:
@@ -47,41 +54,49 @@ class SpotifyUtil(Config):
             tracks.extend(results['items'])
         return tracks
     
-    def get_tracks(self, url:str, type="playlist", verbose=False):
+    def get_tracks(self, url:str, type="playlist", verbose=False, avoid_unavailable=False):
         """
         Returns a dict containing list of URIs ("tracks"), No. of total tracks present ("total_tracks_length") and No. of playable tracks present ("playable_tracks_length") of all the tracks playable in the given url.\n
         Params:\n
         `verbose` -> Set this to True if you want to get the entire track detail of each track present instead of only the URIs.\n
-        `type` -> Set the type of track set is it. Takes "Playlist" or "Album" as input. By default set to "Playlist"
+        `type` -> Set the type of track set is it. Takes "Playlist" or "Album" as input. By default set to "Playlist"\n
+        `avoid_unavailable` -> Avoid getting tracks which are unavailable/unplayable. 
         """
         uri = self.create_uri(url=url, type=type)
         items = None
         uri_list = []
         track_details_list = []
+        unplayable_tracks_list = []
         total_track_len, playable_track_len = 0, 0
         if type=="playlist":
             items = self.get_playlist_tracks(uri)
             for track in items:
+                unplayable = False
                 total_track_len+=1
                 temp = self.get_track_details(track['track']['uri'])
                 track_details_list.append(temp)
                 if not temp['playable']:
-                    continue
+                    unplayable_tracks_list.append(temp['uri'])
+                    unplayable = True
+                    if avoid_unavailable: continue
                 uri_list.append(temp['uri'])
-                playable_track_len+=1
+                if not unplayable: playable_track_len+=1
         else:
             items = self.spotify.album(uri)
             for track in items['tracks']['items']:
+                unplayable = False
                 total_track_len+=1
                 temp = self.get_track_details(track['track']['uri'])
                 track_details_list.append(temp)
                 if not temp['playable']:
-                    continue
+                    unplayable_tracks_list.append(temp['uri'])
+                    unplayable = True
+                    if avoid_unavailable: continue
                 uri_list.append(temp['uri'])
-                playable_track_len+=1
+                if not unplayable: playable_track_len+=1
         if verbose:
-            return track_details_list
-        return {"tracks": uri_list, "total_tracks_length": total_track_len, "playable_tracks_length": playable_track_len}
+            return TrackSetDetails(total_length=total_track_len, playable_length=playable_track_len, detailed_list=track_details_list, unplayable_list=unplayable_tracks_list)
+        return uri_list
     
     def create_playlist(self, name, desc=None, is_public=True, is_collaborative=False):
         """
@@ -96,8 +111,29 @@ class SpotifyUtil(Config):
         log.debug(f"Created playlist with name: {name}")
         return playlist['id'], playlist['external_urls']['spotify']
     
-    def get_difference(self, list1, list2):
+    def get_difference(self, list1: list|TrackSetDetails, list2):
+        if isinstance(list1, TrackSetDetails):
+            full_list1 = list1.detailed_list
+            list1 = [track['uri'] for track in full_list1]
+            full_list2 = list2.detailed_list
+            list2 = [track['uri'] for track in full_list2]
         return list(set(list1)^set(list2))
+    
+    def get_total_songs_length(self, url):
+        results = self.spotify.user_playlist_tracks(self.user_id, url)
+        tracks = results['total']
+        while results['next']:
+            results = self.spotify.next(results)
+            tracks+=results['total']
+        return tracks
+    
+    def get_playable_songs_length(self, url):
+        results = self.get_playlist_tracks(url)
+        count = 0
+        for track in results:
+            if self.check_track_is_playable(track):
+                count+=1
+        return count
         
     def get_different_tracks(self, url1, url2):
         """
@@ -156,12 +192,12 @@ class SpotifyUtil(Config):
             playlist_id, playlist_url = self.create_playlist(name=name, desc=description, is_public=is_public, is_collaborative=is_collaborative)
         else: playlist_id = self.get_id(playlist_url, type="playlist")
         if not iterable:
-            iterable = self.get_tracks(from_url, type=type)['tracks']
+            iterable = self.get_tracks(from_url, type=type)
         if allow_duplicates:
             self.add_tracks_in_chunks(iterable, playlist_id)
             log.debug("Songs added to playlist successfully")
         else:
-            already_present_tracks = self.get_tracks(playlist_url)['tracks']
+            already_present_tracks = self.get_tracks(playlist_url)
             non_matching_tracks = self.get_difference(iterable, already_present_tracks)
             self.add_tracks_in_chunks(non_matching_tracks, playlist_id)
             log.debug("Songs added to playlist successfully")
@@ -229,5 +265,5 @@ class SpotifyUtil(Config):
         `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
         """
         songs = self.get_tracks(playlist_url, verbose=True)
-        to_be_added = self.get_unplayable_songs(songs)
+        to_be_added = self.get_unplayable_songs(songs.detailed_list)
         self.add_songs_to_playlist(name=name, iterable=to_be_added, description=description, is_public=is_public, is_collaborative=is_collaborative)
