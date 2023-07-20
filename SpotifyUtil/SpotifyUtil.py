@@ -54,6 +54,9 @@ class SpotifyUtil(Config):
             tracks.extend(results['items'])
         return tracks
     
+    def get_playlist_snapshot(self, playlist_id):
+        return self.spotify.playlist(playlist_id=playlist_id)['snapshot_id']
+    
     def distribute_tracks(self, iterable, avoid_unavailable):
         track_details_list = []
         unplayable_tracks_list = []
@@ -103,13 +106,23 @@ class SpotifyUtil(Config):
         log.debug(f"Created playlist with name: {name}")
         return playlist['id'], playlist['external_urls']['spotify']
     
-    def get_difference(self, list1: list|TrackSetDetails, list2):
+    def get_difference(self, list1: list|TrackSetDetails, list2: list|TrackSetDetails):
         if isinstance(list1, TrackSetDetails):
             full_list1 = list1.detailed_list
             list1 = [track['uri'] for track in full_list1]
             full_list2 = list2.detailed_list
             list2 = [track['uri'] for track in full_list2]
-        return list(set(list1).difference(set(list2)))
+        set1 = set(list1)
+        set2 = set(list2)
+        return {"to_be_added": list(set2.difference(set1)), "to_be_deleted":list(set1.difference(set2))}
+    
+    # def get_difference_multi(self, main, *lists):
+        
+    #     diff1 = set(main).difference(set(l1))
+    #     diff2 = set(main).difference(set(l2))
+    #     diff3 = set(main).difference(set(l3))
+    #     final1 = diff1.difference(diff2.difference(diff3))
+    #     print(final1)
     
     def get_total_songs_length(self, url):
         results = self.spotify.user_playlist_tracks(self.user_id, url)
