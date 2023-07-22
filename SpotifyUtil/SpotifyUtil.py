@@ -46,8 +46,16 @@ class SpotifyUtil(Config):
         playlist = self.spotify.user_playlist(user=None, playlist_id=playlist_id, fields="name")
         return playlist['name']
     
-    def get_playlist_tracks(self, playlist_id) -> list[dict]:
-        results = self.spotify.user_playlist_tracks(self.user_id, playlist_id)
+    def get_playlist_tracks(self, playlist_id, market=None) -> list[dict]:
+        results = self.spotify.user_playlist_tracks(self.user_id, playlist_id, market=market)
+        tracks = results['items']
+        while results['next']:
+            results = self.spotify.next(results)
+            tracks.extend(results['items'])
+        return tracks
+    
+    def get_liked_songs(self, limit, offset) -> list[dict]:
+        results = self.spotify.current_user_saved_tracks(limit=limit, offset=offset)
         tracks = results['items']
         while results['next']:
             results = self.spotify.next(results)
@@ -62,15 +70,15 @@ class SpotifyUtil(Config):
         unplayable_tracks_list = []
         uri_list = []
         for track in iterable:
-                temp = self.get_track_details(track['track']['uri'])
-                track_details_list.append(temp)
-                if not temp['playable']:
-                    unplayable_tracks_list.append(temp['uri'])
-                    if avoid_unavailable: continue
-                uri_list.append(temp['uri'])
+            temp = self.get_track_details(track['track']['uri'])
+            track_details_list.append(temp)
+            if not temp['playable']:
+                unplayable_tracks_list.append(temp['uri'])
+                if avoid_unavailable: continue
+            uri_list.append(temp['uri'])
         return track_details_list, unplayable_tracks_list, uri_list
     
-    def get_tracks(self, url:str, type="playlist", verbose=False, avoid_unavailable=False):
+    def get_tracks(self, url:str, type="playlist", verbose=False, avoid_unavailable=False, market=None):
         """
         Returns a dict containing list of URIs ("tracks"), No. of total tracks present ("total_tracks_length") and No. of playable tracks present ("playable_tracks_length") of all the tracks playable in the given url.\n
         Params:\n
@@ -81,7 +89,7 @@ class SpotifyUtil(Config):
         uri = self.create_uri(url=url, type=type)
         items = None
         if type=="playlist":
-            items = self.get_playlist_tracks(uri)
+            items = self.get_playlist_tracks(uri, market=market)
             track_details_list, unplayable_tracks_list, uri_list = self.distribute_tracks(iterable=items, avoid_unavailable=avoid_unavailable)
         else:
             items = self.spotify.album(uri)
@@ -106,7 +114,7 @@ class SpotifyUtil(Config):
         log.debug(f"Created playlist with name: {name}")
         return playlist['id'], playlist['external_urls']['spotify']
     
-    def get_difference(self, list1: list|TrackSetDetails, list2: list|TrackSetDetails):
+    def get_difference(self, list1: list|TrackSetDetails, list2: list|TrackSetDetails, mode="to_be_added"):
         if isinstance(list1, TrackSetDetails):
             full_list1 = list1.detailed_list
             list1 = [track['uri'] for track in full_list1]
@@ -114,15 +122,17 @@ class SpotifyUtil(Config):
             list2 = [track['uri'] for track in full_list2]
         set1 = set(list1)
         set2 = set(list2)
-        return {"to_be_added": list(set2.difference(set1)), "to_be_deleted":list(set1.difference(set2))}
+        if mode=="to_be_added":
+            return list(set2.difference(set1))
+        return list(set1.difference(set2))
     
-    # def get_difference_multi(self, main, *lists):
-        
-    #     diff1 = set(main).difference(set(l1))
-    #     diff2 = set(main).difference(set(l2))
-    #     diff3 = set(main).difference(set(l3))
-    #     final1 = diff1.difference(diff2.difference(diff3))
-    #     print(final1)
+    def get_difference_multi(self, main, mode="to_be_added", *lists):
+        result = set()
+        if mode=="to_be_removed":
+            return list(set(main).difference([set(li) for li in lists]))
+        for li in lists:
+            result = result.union(set(li).difference(set(main)))
+        return list(result)
     
     def get_total_songs_length(self, url):
         results = self.spotify.user_playlist_tracks(self.user_id, url)
@@ -156,7 +166,10 @@ class SpotifyUtil(Config):
         try:
             result = len(track['available_markets'])>0
         except:
-            result = len(track['track']['available_markets'])>0
+            try:
+                result = track['is_playable']==True
+            except:
+                result = len(track['track']['available_markets'])>0
         return result
     
     def get_unplayable_songs(self, tracks):
@@ -205,12 +218,12 @@ class SpotifyUtil(Config):
             log.debug("Songs added to playlist successfully")
         else:
             already_present_tracks = self.get_tracks(playlist_url, avoid_unavailable=skip_unplayables)
-            non_matching_tracks = self.get_difference(iterable, already_present_tracks)
+            non_matching_tracks = self.get_difference(already_present_tracks, iterable)
             self.add_tracks_in_chunks(non_matching_tracks, playlist_id)
             log.debug("Songs added to playlist successfully")
         return self.get_playlist_name_from_id(playlist_id=playlist_id)
 
-    def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_url=None, limit=20, offset=1):
+    def add_liked_songs_to_playlist(self, name="Test Liked songs", playlist_url=None, limit=20, offset=1, is_public=True, is_collaborative=False, desc=None):
         """
         Adds your liked songs to a playlist.\n
         Params:\n
@@ -219,10 +232,9 @@ class SpotifyUtil(Config):
         - `limit` -> The no. of songs you want to add to your playlist.\n
         - `offset` -> The playlist will contain songs starting from this numbered track in your liked songs.
         """
-        if not playlist_url or len(playlist_url)==0: playlist_id, playlist_url = self.create_playlist(name=name)
-        else: playlist_id = self.get_id(playlist_url, type="playlist")
-        tracks = [track['track']['uri'] for track in self.spotify.current_user_saved_tracks(limit=limit, offset=offset-1)['items']]
-        name = self.add_songs_to_playlist(name=name, playlist_id=playlist_id, iterable=tracks)
+        if not playlist_url or len(playlist_url)==0: playlist_url = self.create_playlist(name=name, desc=desc, is_public=is_public, is_collaborative=is_collaborative)[1]
+        tracks = [track['track']['uri'] for track in self.get_liked_songs(limit=limit, offset=offset-1)]
+        name = self.add_songs_to_playlist(name=name, playlist_url=playlist_url, iterable=tracks, is_public=is_public, is_collaborative=is_collaborative)
         log.debug(f"Liked songs have been added to the playlist with name: {name}")
 
     def delete_tracks(self, playlist_url, iterable):
@@ -271,7 +283,7 @@ class SpotifyUtil(Config):
         name = self.add_songs_to_playlist(playlist_url=playlist_url, iterable=Track_ids, name=name, allow_duplicates=allow_duplicates, skip_unplayables=skip_unplayables)
         log.debug(f"Added songs from the file {file_path} to the playlist with name: {name}")
 
-    def create_unplayable_track_playlist(self, name, playlist_url, description=None, is_public=True, is_collaborative=False):
+    def create_unplayable_track_playlist(self, name, playlist_url, description=None, is_public=True, is_collaborative=False, market=None):
         """
         Creates a playlist with all the unplayable tracks present in the given playlist url.\n
         Params:\n
@@ -281,6 +293,6 @@ class SpotifyUtil(Config):
         - `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
         - `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
         """
-        songs = self.get_tracks(playlist_url, verbose=True)
+        songs = self.get_tracks(playlist_url, verbose=True, market=market)
         to_be_added = self.get_unplayable_songs(songs.detailed_list)
         self.add_songs_to_playlist(name=name, iterable=to_be_added, description=description, is_public=is_public, is_collaborative=is_collaborative)
