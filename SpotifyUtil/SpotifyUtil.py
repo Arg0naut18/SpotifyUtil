@@ -126,7 +126,7 @@ class SpotifyUtil(Config):
             return list(set2.difference(set1))
         return list(set1.difference(set2))
     
-    def get_difference_multi(self, main, mode="to_be_added", *lists):
+    def get_difference_multi(self, main, *lists, mode="to_be_added"):
         result = set()
         if mode=="to_be_removed":
             return list(set(main).difference([set(li) for li in lists]))
