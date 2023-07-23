@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8", errors="ignore") as fh:
 
 setuptools.setup(
     name="SpotifyUtil",
-    version="0.0.4",
+    version="0.1.1",
     author="Arg0naut18",
     description="SpotifyUtils is a very useful library made over Spotipy to automate some rather tiring tasks.",
     long_description=long_description,
