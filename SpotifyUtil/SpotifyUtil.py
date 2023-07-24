@@ -9,7 +9,7 @@ from SpotifyUtil.file_reader import FileReader
 log = logging.getLogger(__name__)
 
 class TrackSetDetails:
-    def __init__(self, total_size: int, playable_size: int, detailed_list: list[dict], unplayable_list:list):
+    def __init__(self, total_size: int, playable_size: int, detailed_list: list, unplayable_list:list):
         self.total_size = total_size
         self.playable_size = playable_size
         self.detailed_list = detailed_list
@@ -46,7 +46,7 @@ class SpotifyUtil(Config):
         playlist = self.spotify.user_playlist(user=None, playlist_id=playlist_id, fields="name")
         return playlist['name']
     
-    def get_playlist_tracks(self, playlist_id, market=None) -> list[dict]:
+    def get_playlist_tracks(self, playlist_id, market=None) -> list:
         results = self.spotify.user_playlist_tracks(self.user_id, playlist_id, market=market)
         tracks = results['items']
         while results['next']:
@@ -54,7 +54,7 @@ class SpotifyUtil(Config):
             tracks.extend(results['items'])
         return tracks
     
-    def get_liked_songs(self, limit, offset) -> list[dict]:
+    def get_liked_songs(self, limit, offset) -> list:
         results = self.spotify.current_user_saved_tracks(limit=limit, offset=offset)
         tracks = results['items']
         while results['next']:
