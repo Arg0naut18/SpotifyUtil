@@ -1,5 +1,5 @@
 from spotipy import Spotify
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
 from SpotifyUtil.config import Config
 import os
 import logging
@@ -20,9 +20,9 @@ class SpotifyUtil(Config):
     """
     A utility that aims to create and modify spotify playlists and albums for you using a single function.
     """
-    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None):
+    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, cache_path=None):
         super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri)
-        self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
+        self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path))
         self.spotify = Spotify(auth_manager=self.auth_manager)
         self.user = self.spotify.current_user()
         self.user_id = self.user['id']
