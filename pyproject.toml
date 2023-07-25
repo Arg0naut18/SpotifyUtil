@@ -1,6 +1,6 @@
 [project]
 name = "SpotifyUtil"
-version = "0.0.6"
+version = "0.0.7"
 authors = [
     { name="Arg0naut18", email="gaming.genos1729@gmail.com" },
 ]
@@ -17,8 +17,9 @@ keywords = [
     "Spotify",
     "Spotipy",
     "SpotifyUtil",
-    "SpotifyUtils",
+    "SpotifyUtils"
 ]
+dependencies = ["spotipy"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

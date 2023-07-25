@@ -9,7 +9,7 @@ from SpotifyUtil.file_reader import FileReader
 log = logging.getLogger(__name__)
 
 class TrackSetDetails:
-    def __init__(self, total_size: int, playable_size: int, detailed_list: list, unplayable_list:list):
+    def __init__(self, total_size: int, playable_size: int, detailed_list: list, unplayable_list: list):
         self.total_size = total_size
         self.playable_size = playable_size
         self.detailed_list = detailed_list
@@ -35,10 +35,10 @@ class SpotifyUtil(Config):
         return {"track": song, "name": name, "artist": artist, "uri": song['uri'], "playable": self.check_track_is_playable(song)}
 
     @staticmethod
-    def get_id(url:str, type="track"):
+    def get_id(url: str, type="track"):
         return url.split(type+"/")[1].split('?')[0]
 
-    def create_uri(self, url:str, type="track"):
+    def create_uri(self, url: str, type="track"):
         id = self.get_id(url=url, type=type)
         return f'spotify:{type}:{id}'
     
@@ -78,7 +78,7 @@ class SpotifyUtil(Config):
             uri_list.append(temp['uri'])
         return track_details_list, unplayable_tracks_list, uri_list
     
-    def get_tracks(self, url:str, type="playlist", verbose=False, avoid_unavailable=False, market=None):
+    def get_tracks(self, url: str, type="playlist", verbose=False, avoid_unavailable=False, market=None):
         """
         Returns a dict containing list of URIs ("tracks"), No. of total tracks present ("total_tracks_length") and No. of playable tracks present ("playable_tracks_length") of all the tracks playable in the given url.\n
         Params:\n
@@ -114,7 +114,7 @@ class SpotifyUtil(Config):
         log.debug(f"Created playlist with name: {name}")
         return playlist['id'], playlist['external_urls']['spotify']
     
-    def get_difference(self, list1: list|TrackSetDetails, list2: list|TrackSetDetails, mode="to_be_added"):
+    def get_difference(self, list1, list2, mode="to_be_added"):
         if isinstance(list1, TrackSetDetails):
             full_list1 = list1.detailed_list
             list1 = [track['uri'] for track in full_list1]
@@ -186,8 +186,8 @@ class SpotifyUtil(Config):
                             type="playlist", 
                             iterable=None, 
                             name="Test Playlist", 
-                            allow_duplicates:bool=False,
-                            skip_unplayables:bool=False,
+                            allow_duplicates: bool=False,
+                            skip_unplayables: bool=False,
                             description=None, 
                             is_public=True, 
                             is_collaborative=False
