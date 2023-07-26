@@ -1,6 +1,6 @@
 [project]
 name = "SpotifyUtil"
-version = "0.0.8"
+version = "0.0.9"
 authors = [
     { name="Arg0naut18", email="gaming.genos1729@gmail.com" },
 ]
