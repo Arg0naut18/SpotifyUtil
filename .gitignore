@@ -6,3 +6,4 @@ SpotifyUtil/setup.py
 UI/*
 dist/*.gz
 utilityTest.py
+utility_test.ipynb

@@ -25,7 +25,8 @@ class SpotifyUtil(Config):
         if use_cache_handler: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
         elif cache_path: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
         else: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
-        self.spotify = Spotify(auth_manager=self.auth_manager)
+        token = self.auth_manager.get_access_token(check_cache=False)
+        self.spotify = Spotify(auth=token['access_token'])
         self.user = self.spotify.current_user()
         self.user_id = self.user['id']
         log.debug(msg=self.user_id)
