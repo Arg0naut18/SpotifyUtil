@@ -41,8 +41,8 @@ class SpotifyUtil(Config):
     def get_id(url: str, type="track"):
         return url.split(type+"/")[1].split('?')[0]
 
-    def create_uri(self, url: str, type="track"):
-        id = self.get_id(url=url, type=type)
+    def create_uri(self, url: str, id=None, type="track"):
+        if not id: id = self.get_id(url=url, type=type)
         return f'spotify:{type}:{id}'
     
     def get_playlist_name_from_id(self, playlist_id):
