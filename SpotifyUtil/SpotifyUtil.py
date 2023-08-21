@@ -23,7 +23,8 @@ class SpotifyUtil(Config):
     def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, cache_path=None, username=None, use_cache_handler=True):
         super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri)
         if use_cache_handler: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
-        else: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
+        elif cache_path: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
+        else: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
         self.spotify = Spotify(auth_manager=self.auth_manager)
         self.user = self.spotify.current_user()
         self.user_id = self.user['id']
