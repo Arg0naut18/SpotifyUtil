@@ -1,5 +1,6 @@
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
+from spotipy.cache_handler import MemoryCacheHandler
 from SpotifyUtil.config import Config
 import os
 import logging
@@ -20,11 +21,17 @@ class SpotifyUtil(Config):
     """
     A utility that aims to create and modify spotify playlists and albums for you using a single function.
     """
-    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, cache_path=None, username=None, use_cache_handler=True):
+    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, cache_path=None, username=None, use_cache_handler=True, memory_mode=True):
         super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri)
-        if use_cache_handler: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
-        elif cache_path: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
-        else: self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
+        if use_cache_handler:
+            if memory_mode:
+                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=MemoryCacheHandler())
+            else:
+                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
+        elif cache_path:
+            self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
+        else:
+            self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
         token = self.auth_manager.get_access_token(check_cache=False)
         self.spotify = Spotify(auth=token['access_token'])
         self.user = self.spotify.current_user()
@@ -41,7 +48,7 @@ class SpotifyUtil(Config):
     def get_id(url: str, type="track"):
         return url.split(type+"/")[1].split('?')[0]
 
-    def create_uri(self, url: str, id=None, type="track"):
+    def create_uri(self, url: str=None, id=None, type="track"):
         if not id: id = self.get_id(url=url, type=type)
         return f'spotify:{type}:{id}'
     
