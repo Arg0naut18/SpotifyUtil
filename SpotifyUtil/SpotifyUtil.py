@@ -1,6 +1,6 @@
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
-from spotipy.cache_handler import MemoryCacheHandler
+from spotipy.cache_handler import MemoryCacheHandler, RedisCacheHandler
 from SpotifyUtil.config import Config
 import os
 import logging
@@ -21,10 +21,18 @@ class SpotifyUtil(Config):
     """
     A utility that aims to create and modify spotify playlists and albums for you using a single function.
     """
-    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, cache_path=None, username=None, use_cache_handler=True, memory_mode=True):
-        super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri)
+    def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, use_redis=False, cache_path=None, username=None, use_cache_handler=True, memory_mode=True, redis_pass=None, host=None, port=None):
+        super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri, redis_pass=redis_pass)
         if use_cache_handler:
-            if memory_mode:
+            if use_redis:
+                import redis
+                r = redis.Redis(
+                    host=host,
+                    port=port,
+                    password=self.redis_pass
+                )
+                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=RedisCacheHandler(r))
+            elif memory_mode:
                 self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=MemoryCacheHandler())
             else:
                 self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
