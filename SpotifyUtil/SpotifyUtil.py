@@ -29,7 +29,7 @@ class SpotifyUtil(Config):
                 r = redis.Redis(
                     host=host,
                     port=port,
-                    password=self.redis_pass
+                    password=self._redis_pass
                 )
                 self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=RedisCacheHandler(r))
             elif memory_mode:
@@ -40,7 +40,7 @@ class SpotifyUtil(Config):
             self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
         else:
             self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
-        token = self.auth_manager.get_access_token(check_cache=False)
+        token = self.auth_manager.get_access_token()
         self.spotify = Spotify(auth=token['access_token'])
         self.user = self.spotify.current_user()
         self.user_id = self.user['id']
