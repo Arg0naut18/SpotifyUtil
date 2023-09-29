@@ -23,24 +23,32 @@ class SpotifyUtil(Config):
     """
     def __init__(self, spotify_client_id=None, spotify_client_secret=None, spotify_redirect_uri=None, use_redis=False, cache_path=None, username=None, use_cache_handler=True, memory_mode=True, redis_pass=None, host=None, port=None):
         super().__init__(client_id=spotify_client_id, client_secret=spotify_client_secret, redirect_uri=spotify_redirect_uri, redis_pass=redis_pass)
-        if use_cache_handler:
-            if use_redis:
-                import redis
-                r = redis.Redis(
-                    host=host,
-                    port=port,
-                    password=self._redis_pass
-                )
-                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=RedisCacheHandler(r))
-            elif memory_mode:
-                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=MemoryCacheHandler())
+        try:
+            if use_cache_handler:
+                if use_redis:
+                    import redis
+                    r = redis.Redis(
+                        host=host,
+                        port=port,
+                        password=self._redis_pass
+                    )
+                    self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=RedisCacheHandler(r))
+                elif memory_mode:
+                    self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=MemoryCacheHandler())
+                else:
+                    self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
+            elif cache_path:
+                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
             else:
-                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_handler=CacheFileHandler(cache_path=cache_path, username=username))
-        elif cache_path:
-            self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str, cache_path=cache_path, username=username)
-        else:
-            self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
-        token = self.auth_manager.get_access_token()
+                self.auth_manager = SpotifyOAuth(client_id=self._client_id, client_secret=self._client_secret, redirect_uri=self._redirect_uri, scope=self._scope_str)
+        except Exception as e:
+            print("Auth Manager couldn't be generated.")
+            raise e
+        try:
+            token = self.auth_manager.get_access_token()
+        except Exception as e:
+            print("Token couldn't be generated.")
+            raise e
         self.spotify = Spotify(auth=token['access_token'])
         self.user = self.spotify.current_user()
         self.user_id = self.user['id']
@@ -64,7 +72,7 @@ class SpotifyUtil(Config):
         playlist = self.spotify.user_playlist(user=None, playlist_id=playlist_id, fields="name")
         return playlist['name']
     
-    def get_playlist_tracks(self, playlist_id, market=None) -> list:
+    def _get_playlist_tracks(self, playlist_id, market=None) -> list:
         results = self.spotify.user_playlist_tracks(self.user_id, playlist_id, market=market)
         tracks = results['items']
         while results['next']:
@@ -107,7 +115,7 @@ class SpotifyUtil(Config):
         uri = self.create_uri(url=url, type=type)
         items = None
         if type=="playlist":
-            items = self.get_playlist_tracks(uri, market=market)
+            items = self._get_playlist_tracks(uri, market=market)
             track_details_list, unplayable_tracks_list, uri_list = self.distribute_tracks(iterable=items, avoid_unavailable=avoid_unavailable)
         else:
             items = self.spotify.album(uri)
@@ -161,7 +169,7 @@ class SpotifyUtil(Config):
         return tracks
     
     def get_playable_songs_length(self, url):
-        results = self.get_playlist_tracks(url)
+        results = self._get_playlist_tracks(url)
         count = 0
         for track in results:
             if self.check_track_is_playable(track):
@@ -181,6 +189,8 @@ class SpotifyUtil(Config):
         Checks if the market of the track is null or not.
         """
         result = False
+        if not isinstance(track, dict):
+            track = self.spotify.track(track)
         try:
             result = len(track['available_markets'])>0
         except:
