@@ -203,6 +203,10 @@ class SpotifyUtil(Config):
     def get_unplayable_songs(self, tracks):
         return [track['uri'] for track in tracks if not self.check_track_is_playable(track)]
     
+    def get_unplayable_songs_from_playlist(self, playlist_url, market=None):
+        songs = self.get_tracks(playlist_url, verbose=True, market=market)
+        return self.get_unplayable_songs(songs.detailed_list)
+    
     def add_tracks_in_chunks(self, iterable, playlist_id):
         for idx in range(0, len(iterable), 100):
             chunk = iterable[idx:idx+100]
@@ -321,6 +325,5 @@ class SpotifyUtil(Config):
         - `is_public` -> Set if the playlist is supposed to be public. By default set to True. When set to False, it creates a private playlist.\n
         - `is_collaborative` -> Set if the type of playlist is collaborative or not. By default set to False.
         """
-        songs = self.get_tracks(playlist_url, verbose=True, market=market)
-        to_be_added = self.get_unplayable_songs(songs.detailed_list)
+        to_be_added = self.get_unplayable_songs_from_playlist(playlist_url=playlist_url, market=market)
         self.add_songs_to_playlist(name=name, iterable=to_be_added, description=description, is_public=is_public, is_collaborative=is_collaborative)

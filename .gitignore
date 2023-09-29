@@ -7,3 +7,4 @@ UI/*
 dist/*
 utilityTest.py
 utility_test.ipynb
+pushToPypi.sh
